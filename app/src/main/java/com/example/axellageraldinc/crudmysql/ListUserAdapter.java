@@ -49,6 +49,7 @@ public class ListUserAdapter extends BaseAdapter {
             holder = new ItemViewHolder();
             holder.txtId = (TextView) view1.findViewById(R.id.txtId);
             holder.txtUsername = (TextView) view1.findViewById(R.id.txtUsername);
+            holder.txtPassword = (TextView) view1.findViewById(R.id.txtPassword);
             view1.setTag(holder);
         } else {
             holder = (ItemViewHolder) view1.getTag();
@@ -57,10 +58,11 @@ public class ListUserAdapter extends BaseAdapter {
         //Set data ke listview
         holder.txtId.setText(String.valueOf(userList.get(i).getId()));
         holder.txtUsername.setText(userList.get(i).getUsername());
+        holder.txtPassword.setText(userList.get(i).getPassword());
         return view1;
     }
 
     private static class ItemViewHolder{
-        TextView txtId, txtUsername;
+        TextView txtId, txtUsername, txtPassword;
     }
 }

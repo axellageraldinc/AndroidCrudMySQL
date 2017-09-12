@@ -3,11 +3,13 @@ package com.example.axellageraldinc.crudmysql;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.ButtonBarLayout;
+import android.util.Base64;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -20,9 +22,12 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private boolean statusUpdate = false;
+
     private static final int CODE_GET_REQUEST = 1024;
     private static final int CODE_POST_REQUEST = 1025;
 
+    private TextView txtId;
     private EditText txtName, txtPassword;
     private Button btnInsert;
     private ListView userListView;
@@ -36,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        txtId = (TextView) findViewById(R.id.txtId);
         txtName = (EditText) findViewById(R.id.txtUsername);
         txtPassword = (EditText) findViewById(R.id.txtPassword);
         btnInsert = (Button) findViewById(R.id.btnInsert);
@@ -44,7 +50,33 @@ public class MainActivity extends AppCompatActivity {
         btnInsert.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                insertData(txtName.getText().toString(), txtPassword.getText().toString());
+                if (statusUpdate==false){
+                    //Jika update false, maka insert
+                    insertData(txtName.getText().toString(), txtPassword.getText().toString());
+                    txtId.setText("");
+                    txtName.setText("");
+                    txtPassword.setText("");
+                } else{
+                    //Jika update true, maka update
+                    update(Integer.parseInt(txtId.getText().toString()), txtName.getText().toString(), txtPassword.getText().toString());
+                    statusUpdate = false;
+                    txtId.setText("");
+                    txtName.setText("");
+                    txtPassword.setText("");
+                }
+            }
+        });
+        userListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                statusUpdate = true;
+                UserModel userModel = userModelList.get(i);
+                int id = userModel.getId();
+                String username = userModel.getUsername();
+                String password = userModel.getPassword();
+                txtId.setText(String.valueOf(id));
+                txtName.setText(username);
+                txtPassword.setText(password);
             }
         });
         getUsers();
@@ -61,6 +93,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void getUsers(){
         PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
+        pnr.execute();
+    }
+
+    private void update(int id, String username, String password){
+        HashMap<String, String> param = new HashMap<>();
+        param.put("id", String.valueOf(id));
+        param.put("username", username);
+        param.put("password", password);
+        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_UPDATE, param, CODE_POST_REQUEST);
         pnr.execute();
     }
 
@@ -99,7 +140,8 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject jsonObject = users.getJSONObject(i);
                 userModelList.add(new UserModel(
                         jsonObject.getInt("id"),
-                        jsonObject.getString("username")
+                        jsonObject.getString("username"),
+                        jsonObject.getString("password")
                 ));
             }
             listUserAdapter = new ListUserAdapter(getApplicationContext(), userModelList);
