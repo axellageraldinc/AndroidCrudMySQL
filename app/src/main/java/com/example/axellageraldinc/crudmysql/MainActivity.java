@@ -7,12 +7,16 @@ import android.support.v7.widget.ButtonBarLayout;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -21,6 +25,12 @@ public class MainActivity extends AppCompatActivity {
 
     private EditText txtName, txtPassword;
     private Button btnInsert;
+    private ListView userListView;
+
+    private ListUserAdapter listUserAdapter;
+
+    private List<UserModel> userModelList = new ArrayList<>();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
         txtName = (EditText) findViewById(R.id.txtUsername);
         txtPassword = (EditText) findViewById(R.id.txtPassword);
         btnInsert = (Button) findViewById(R.id.btnInsert);
+        userListView = (ListView) findViewById(R.id.listUsers);
 
         btnInsert.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -36,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
                 insertData(txtName.getText().toString(), txtPassword.getText().toString());
             }
         });
+        getUsers();
     }
 
     private void insertData(String username, String password){
@@ -44,6 +56,11 @@ public class MainActivity extends AppCompatActivity {
         param.put("password", password);
 
         PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_CREATE, param, CODE_POST_REQUEST);
+        pnr.execute();
+    }
+
+    private void getUsers(){
+        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
         pnr.execute();
     }
 
@@ -76,6 +93,20 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
 
+        private void refreshUserList(JSONArray users) throws JSONException{
+            userModelList.clear();
+            for (int i=0; i<users.length(); i++){
+                JSONObject jsonObject = users.getJSONObject(i);
+                userModelList.add(new UserModel(
+                        jsonObject.getInt("id"),
+                        jsonObject.getString("username")
+                ));
+            }
+            listUserAdapter = new ListUserAdapter(getApplicationContext(), userModelList);
+            userListView.setAdapter(listUserAdapter);
+            listUserAdapter.notifyDataSetChanged();
+        }
+
         @Override
         protected void onPostExecute(String s){
             super.onPostExecute(s);
@@ -84,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
                 //Kalau gak response error kosong (alias gak error)
                 if (!jsonObject.getBoolean("error")){
                     Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
+                    refreshUserList(jsonObject.getJSONArray("users"));
                 }
             } catch (JSONException ex){
                 System.out.println("Error postExecute : " + ex.toString());

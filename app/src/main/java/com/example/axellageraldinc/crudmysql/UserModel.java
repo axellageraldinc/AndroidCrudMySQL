@@ -8,9 +8,9 @@ public class UserModel {
     private int id;
     private String username, password;
 
-    private UserModel(String username, String password){
+    public UserModel(int id, String username){
+        this.id = id;
         this.username = username;
-        this.password = password;
     }
 
     public int getId() {
