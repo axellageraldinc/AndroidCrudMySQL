@@ -16,6 +16,7 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -24,10 +25,17 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    String urlGetAll = "http://axell.hostingmerahputih.id/PHP_MySQL/api.php?apicall=getAll";
+    String urlGeneral = "http://axell.hostingmerahputih.id/PHP_MySQL/api.php?apicall=";
+    String urlGetAll = urlGeneral + "getAll";
+    String urlCreate = urlGeneral + "create";
+
+    String reqTag = "json_object_req";
+
+    JsonObjectRequest jsonObjectRequest;
 
     private boolean statusUpdate = false;
 
@@ -59,7 +67,12 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (statusUpdate==false){
                     //Jika update false, maka insert
-                    insertData(txtName.getText().toString(), txtPassword.getText().toString());
+                    HashMap<String, String> param = new HashMap<String, String>();
+                    param.put("username", txtName.getText().toString());
+                    param.put("password", txtPassword.getText().toString());
+                    PerformNetworkRequest pnr = new PerformNetworkRequest(urlCreate, param);
+                    pnr.execute();
+//                        insertData(txtName.getText().toString(), txtPassword.getText().toString());
                     txtId.setText("");
                     txtName.setText("");
                     txtPassword.setText("");
@@ -86,58 +99,25 @@ public class MainActivity extends AppCompatActivity {
                 txtPassword.setText(password);
             }
         });
-        getUsers();
+        PerformNetworkRequest pnr = new PerformNetworkRequest(urlGetAll, null);
+        pnr.execute();
     }
 
-    private void insertData(String username, String password){
-        HashMap<String, String> param = new HashMap<>();
-        param.put("username", username);
-        param.put("password", password);
-
-//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_CREATE, param, CODE_POST_REQUEST);
-//        pnr.execute();
-    }
-
-    private void getUsers(){
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, urlGetAll, null, new Response.Listener<JSONObject>() {
-            @Override
-            public void onResponse(JSONObject response) {
-                try{
-                    //Parsing JSON
-                    //Ambil array users dari response JSON, dimana di dalam array users itu ada id, username dan password
-                    JSONArray usersArray = response.getJSONArray("users");
-                    refreshUserList(usersArray);
-                } catch (JSONException ex){
-                    System.out.println("Error get Users : " + ex.toString());
-                }
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-
-            }
-        });
-        //Add request to queue
-        AppController.getInstance().addToRequestQueue(jsonObjectRequest);
-//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
-//        pnr.execute();
-    }
-
-    private void refreshUserList(JSONArray users) throws JSONException{
-        userModelList.clear();
-        for (int i=0; i<users.length(); i++){
-            JSONObject jsonObject = users.getJSONObject(i);
-            userModelList.add(new UserModel(
-                    //array users tadi itu didalamnya kan JSONObject id, username, dan password, diambil disini.
-                    jsonObject.getInt("id"),
-                    jsonObject.getString("username"),
-                    jsonObject.getString("password")
-            ));
-        }
-        listUserAdapter = new ListUserAdapter(getApplicationContext(), userModelList);
-        userListView.setAdapter(listUserAdapter);
-        listUserAdapter.notifyDataSetChanged();
-    }
+//    private void refreshUserList(JSONArray users) throws JSONException{
+//        userModelList.clear();
+//        for (int i=0; i<users.length(); i++){
+//            JSONObject jsonObject = users.getJSONObject(i);
+//            userModelList.add(new UserModel(
+//                    //array users tadi itu didalamnya kan JSONObject id, username, dan password, diambil disini.
+//                    jsonObject.getInt("id"),
+//                    jsonObject.getString("username"),
+//                    jsonObject.getString("password")
+//            ));
+//        }
+//        listUserAdapter = new ListUserAdapter(getApplicationContext(), userModelList);
+//        userListView.setAdapter(listUserAdapter);
+//        listUserAdapter.notifyDataSetChanged();
+//    }
 
     private void update(int id, String username, String password){
         HashMap<String, String> param = new HashMap<>();
@@ -152,12 +132,10 @@ public class MainActivity extends AppCompatActivity {
 
         String url;
         HashMap<String, String> param;
-        int requestCode;
 
-        PerformNetworkRequest(String url, HashMap<String, String> param, int requestCode){
+        PerformNetworkRequest(String url, HashMap<String, String> param){
             this.url = url;
             this.param = param;
-            this.requestCode = requestCode;
         }
 
         @Override
@@ -168,13 +146,74 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected String doInBackground(Void... voids) {
-            RequestHandler rh = new RequestHandler();
-            if (requestCode == CODE_POST_REQUEST){
-                return rh.sendPostRequest(url, param);
-            } else if(requestCode == CODE_GET_REQUEST){
-                return rh.sendGetRequest(url);
+            if (url == urlCreate){
+                try {
+                    insertData(param.get("username"), param.get("password"));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else if (url == urlGetAll){
+                getUsers();
             }
             return null;
+        }
+
+        private void insertData(final String username, final String password) throws JSONException {
+            StringRequest stringRequest = new StringRequest(Request.Method.POST, urlCreate, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    Toast.makeText(MainActivity.this, "CREATING...", Toast.LENGTH_SHORT).show();
+                    getUsers();
+                }
+            },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            Toast.makeText(MainActivity.this, "Error : " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    })
+            {
+                @Override
+                protected Map<String, String> getParams(){
+                    Map<String, String> param = new HashMap<>();
+                    param.put("username", username);
+                    param.put("password", password);
+                    return param;
+                }
+            };
+            AppController.getInstance().addToRequestQueue(stringRequest, reqTag);
+//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_CREATE, param, CODE_POST_REQUEST);
+//        pnr.execute();
+        }
+
+        private void getUsers(){
+            StringRequest stringRequest = new StringRequest(Request.Method.GET, urlGetAll, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    try {
+                        JSONObject jsonObject = new JSONObject(response);
+                        Boolean error = jsonObject.getBoolean("error");
+                        if (!error) {
+                            JSONArray jsonArray = jsonObject.getJSONArray("users");
+                            refreshUserList(jsonArray);
+                        } else{
+                            String errorMessage = jsonObject.getString("message");
+                            Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Toast.makeText(MainActivity.this, "Error : " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+            //Add request to queue
+            AppController.getInstance().addToRequestQueue(stringRequest);
+//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
+//        pnr.execute();
         }
 
         private void refreshUserList(JSONArray users) throws JSONException{
@@ -195,16 +234,17 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String s){
             super.onPostExecute(s);
-            try{
-                JSONObject jsonObject = new JSONObject(s);
-                //Kalau gak response error kosong (alias gak error)
-                if (!jsonObject.getBoolean("error")){
-                    Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
-                    refreshUserList(jsonObject.getJSONArray("users"));
-                }
-            } catch (JSONException ex){
-                System.out.println("Error postExecute : " + ex.toString());
-            }
+            System.out.println(s);
+//            try{
+//                JSONObject jsonObject = new JSONObject(s);
+//                //Kalau gak response error kosong (alias gak error)
+//                if (!jsonObject.getBoolean("error")){
+//                    Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
+//                    refreshUserList(jsonObject.getJSONArray("users"));
+//                }
+//            } catch (JSONException ex){
+//                System.out.println("Error postExecute : " + ex.toString());
+//            }
         }
     }
 }
