@@ -1,5 +1,6 @@
 package com.example.axellageraldinc.crudmysql;
 
+import android.app.ProgressDialog;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -12,6 +13,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
@@ -32,15 +34,11 @@ public class MainActivity extends AppCompatActivity {
     String urlGeneral = "http://axell.hostingmerahputih.id/PHP_MySQL/api.php?apicall=";
     String urlGetAll = urlGeneral + "getAll";
     String urlCreate = urlGeneral + "create";
+    String urlUpdate = urlGeneral + "update";
 
     String reqTag = "json_object_req";
 
-    JsonObjectRequest jsonObjectRequest;
-
     private boolean statusUpdate = false;
-
-    private static final int CODE_GET_REQUEST = 1024;
-    private static final int CODE_POST_REQUEST = 1025;
 
     private TextView txtId;
     private EditText txtName, txtPassword;
@@ -78,7 +76,13 @@ public class MainActivity extends AppCompatActivity {
                     txtPassword.setText("");
                 } else{
                     //Jika update true, maka update
-                    update(Integer.parseInt(txtId.getText().toString()), txtName.getText().toString(), txtPassword.getText().toString());
+                    HashMap<String, String> param = new HashMap<String, String>();
+                    param.put("id", txtId.getText().toString());
+                    param.put("username", txtName.getText().toString());
+                    param.put("password", txtName.getText().toString());
+//                    update(Integer.parseInt(txtId.getText().toString()), txtName.getText().toString(), txtPassword.getText().toString());
+                    PerformNetworkRequest pnr = new PerformNetworkRequest(urlUpdate, param);
+                    pnr.execute();
                     statusUpdate = false;
                     txtId.setText("");
                     txtName.setText("");
@@ -103,45 +107,23 @@ public class MainActivity extends AppCompatActivity {
         pnr.execute();
     }
 
-//    private void refreshUserList(JSONArray users) throws JSONException{
-//        userModelList.clear();
-//        for (int i=0; i<users.length(); i++){
-//            JSONObject jsonObject = users.getJSONObject(i);
-//            userModelList.add(new UserModel(
-//                    //array users tadi itu didalamnya kan JSONObject id, username, dan password, diambil disini.
-//                    jsonObject.getInt("id"),
-//                    jsonObject.getString("username"),
-//                    jsonObject.getString("password")
-//            ));
-//        }
-//        listUserAdapter = new ListUserAdapter(getApplicationContext(), userModelList);
-//        userListView.setAdapter(listUserAdapter);
-//        listUserAdapter.notifyDataSetChanged();
-//    }
-
-    private void update(int id, String username, String password){
-        HashMap<String, String> param = new HashMap<>();
-        param.put("id", String.valueOf(id));
-        param.put("username", username);
-        param.put("password", password);
-//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_UPDATE, param, CODE_POST_REQUEST);
-//        pnr.execute();
-    }
-
     private class PerformNetworkRequest extends AsyncTask<Void, Void, String>{
 
         String url;
         HashMap<String, String> param;
+        ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
 
         PerformNetworkRequest(String url, HashMap<String, String> param){
             this.url = url;
             this.param = param;
+            progressDialog.setTitle("IN PROGRESS");
+            progressDialog.setMessage("Please wait...");
         }
 
         @Override
         protected void onPreExecute(){
             super.onPreExecute();
-            Toast.makeText(MainActivity.this, "PLEASE WAIT, IN PROGRESS", Toast.LENGTH_SHORT).show();
+            progressDialog.show();
         }
 
         @Override
@@ -154,15 +136,17 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else if (url == urlGetAll){
                 getUsers();
+            } else if (url == urlUpdate){
+                updateData(Integer.parseInt(param.get("id")), param.get("username"), param.get("password"));
             }
             return null;
         }
 
         private void insertData(final String username, final String password) throws JSONException {
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, urlCreate, new Response.Listener<String>() {
+            StringRequest stringRequest = new StringRequest(Request.Method.POST, urlCreate,
+                    new Response.Listener<String>() {
                 @Override
                 public void onResponse(String response) {
-                    Toast.makeText(MainActivity.this, "CREATING...", Toast.LENGTH_SHORT).show();
                     getUsers();
                 }
             },
@@ -182,8 +166,33 @@ public class MainActivity extends AppCompatActivity {
                 }
             };
             AppController.getInstance().addToRequestQueue(stringRequest, reqTag);
-//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_CREATE, param, CODE_POST_REQUEST);
-//        pnr.execute();
+        }
+
+        private void updateData(final int id, final String username, final String password){
+            StringRequest stringRequest = new StringRequest(Request.Method.POST, urlUpdate,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            getUsers();
+                        }
+                    },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            System.out.println("Error updateData : " + error.getMessage());
+                        }
+                    })
+            {
+                @Override
+                protected Map<String, String> getParams() throws AuthFailureError {
+                    Map<String, String> param = new HashMap<>();
+                    param.put("id", String.valueOf(id));
+                    param.put("username", username);
+                    param.put("password", password);
+                    return param;
+                }
+            };
+            AppController.getInstance().addToRequestQueue(stringRequest, reqTag);
         }
 
         private void getUsers(){
@@ -212,8 +221,6 @@ public class MainActivity extends AppCompatActivity {
             });
             //Add request to queue
             AppController.getInstance().addToRequestQueue(stringRequest);
-//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
-//        pnr.execute();
         }
 
         private void refreshUserList(JSONArray users) throws JSONException{
@@ -234,17 +241,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String s){
             super.onPostExecute(s);
-            System.out.println(s);
-//            try{
-//                JSONObject jsonObject = new JSONObject(s);
-//                //Kalau gak response error kosong (alias gak error)
-//                if (!jsonObject.getBoolean("error")){
-//                    Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
-//                    refreshUserList(jsonObject.getJSONArray("users"));
-//                }
-//            } catch (JSONException ex){
-//                System.out.println("Error postExecute : " + ex.toString());
-//            }
+            progressDialog.dismiss();
         }
     }
 }
