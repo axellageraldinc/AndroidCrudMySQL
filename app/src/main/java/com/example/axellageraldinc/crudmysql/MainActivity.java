@@ -12,6 +12,11 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    String urlGetAll = "http://axell.hostingmerahputih.id/PHP_MySQL/api.php?apicall=getAll";
 
     private boolean statusUpdate = false;
 
@@ -87,13 +94,49 @@ public class MainActivity extends AppCompatActivity {
         param.put("username", username);
         param.put("password", password);
 
-        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_CREATE, param, CODE_POST_REQUEST);
-        pnr.execute();
+//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_CREATE, param, CODE_POST_REQUEST);
+//        pnr.execute();
     }
 
     private void getUsers(){
-        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
-        pnr.execute();
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, urlGetAll, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try{
+                    //Parsing JSON
+                    //Ambil array users dari response JSON, dimana di dalam array users itu ada id, username dan password
+                    JSONArray usersArray = response.getJSONArray("users");
+                    refreshUserList(usersArray);
+                } catch (JSONException ex){
+                    System.out.println("Error get Users : " + ex.toString());
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+
+            }
+        });
+        //Add request to queue
+        AppController.getInstance().addToRequestQueue(jsonObjectRequest);
+//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_READ, null, CODE_GET_REQUEST);
+//        pnr.execute();
+    }
+
+    private void refreshUserList(JSONArray users) throws JSONException{
+        userModelList.clear();
+        for (int i=0; i<users.length(); i++){
+            JSONObject jsonObject = users.getJSONObject(i);
+            userModelList.add(new UserModel(
+                    //array users tadi itu didalamnya kan JSONObject id, username, dan password, diambil disini.
+                    jsonObject.getInt("id"),
+                    jsonObject.getString("username"),
+                    jsonObject.getString("password")
+            ));
+        }
+        listUserAdapter = new ListUserAdapter(getApplicationContext(), userModelList);
+        userListView.setAdapter(listUserAdapter);
+        listUserAdapter.notifyDataSetChanged();
     }
 
     private void update(int id, String username, String password){
@@ -101,8 +144,8 @@ public class MainActivity extends AppCompatActivity {
         param.put("id", String.valueOf(id));
         param.put("username", username);
         param.put("password", password);
-        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_UPDATE, param, CODE_POST_REQUEST);
-        pnr.execute();
+//        PerformNetworkRequest pnr = new PerformNetworkRequest(ApiConnect.ROOT_URL_UPDATE, param, CODE_POST_REQUEST);
+//        pnr.execute();
     }
 
     private class PerformNetworkRequest extends AsyncTask<Void, Void, String>{
